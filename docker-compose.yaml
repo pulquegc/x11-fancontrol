@@ -1,0 +1,18 @@
+# X11 Fan Control - TrueNAS SCALE Custom App
+# Apps -> Discover Apps -> ⋮ -> Install via YAML
+# Replace /mnt/POOL/fancontrol with a dataset of yours (it stores config.json).
+services:
+  fancontrol:
+    image: ghcr.io/pulquegc/x11-fancontrol:latest
+    container_name: x11-fancontrol
+    restart: unless-stopped
+    # Needed to access /dev/ipmi0 and to read drive temperatures with smartctl
+    privileged: true
+    stop_grace_period: 30s
+    environment:
+      TZ: Europe/Rome
+      # UI_TOKEN: "change-me"   # optional: required to save settings from the UI
+    ports:
+      - "8765:8765"
+    volumes:
+      - /mnt/POOL/fancontrol:/data

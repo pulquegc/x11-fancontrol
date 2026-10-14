@@ -1,0 +1,7 @@
+.git
+.github
+*.md
+LICENSE
+docker-compose.yaml
+__pycache__
+config.json

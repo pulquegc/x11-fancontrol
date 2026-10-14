@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>X11 Fan Control</title>
+<style>
+:root{--bg:#f5f6f4;--card:#fff;--ink:#1d2321;--mute:#6b7470;--line:#e2e5e1;--acc:#0f7b6c;--warn:#b5651d;--bad:#b42318;--cpu:#d9480f;--hdd:#1971c2;--z0:#2b8a3e;--z1:#7048e8}
+@media (prefers-color-scheme:dark){:root{--bg:#121514;--card:#1b1f1e;--ink:#e6e9e7;--mute:#8d9692;--line:#2b302e;--acc:#38c7b0;--warn:#f0a35b;--bad:#ff6b5b;--cpu:#ff8a50;--hdd:#5aa9f0;--z0:#5fd17a;--z1:#a48cff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between;margin-bottom:18px}
+h1{font-size:20px;margin:0}h2{font-size:15px;margin:0 0 12px}
+.sub{color:var(--mute);font-size:13px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.grid .card{margin:0}
+.big{font-size:28px;font-weight:650;font-variant-numeric:tabular-nums}
+.lbl{color:var(--mute);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.pill{display:inline-block;padding:4px 10px;border-radius:999px;font-weight:600;font-size:13px}
+.pill.dry{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.pill.on{background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc)}
+.pill.err{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--mute);font-weight:500;font-size:12px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+button.danger{border-color:var(--bad);color:var(--bad)}
+input,textarea{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 7px}
+input[type=number]{width:72px}
+textarea{width:100%;min-height:260px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.curves{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+svg text{fill:var(--mute);font-size:11px}
+.legend span{margin-right:14px;font-size:12px}
+.legend i{display:inline-block;width:10px;height:3px;margin-right:5px;vertical-align:middle}
+details summary{cursor:pointer;color:var(--mute)}
+#msg{min-height:20px;font-size:13px}
+.scroll{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div><h1>X11 Fan Control</h1><div class="sub" id="upd">—</div></div>
+  <div class="row"><span id="mode" class="pill">…</span><button id="toggle">…</button></div>
+</header>
+
+<div class="grid">
+  <div class="card"><div class="lbl">CPU</div><div class="big" id="tcpu">—</div></div>
+  <div class="card"><div class="lbl">HDD (max)</div><div class="big" id="thdd">—</div></div>
+  <div class="card"><div class="lbl" id="z0n">Zone 0</div><div class="big" id="z0">—</div><div class="sub" id="z0r"></div></div>
+  <div class="card"><div class="lbl" id="z1n">Zone 1</div><div class="big" id="z1">—</div><div class="sub" id="z1r"></div></div>
+</div>
+
+<div class="card">
+  <h2>Last hour</h2>
+  <div class="legend"><span><i style="background:var(--cpu)"></i>CPU °C</span><span><i style="background:var(--hdd)"></i>HDD °C</span><span><i style="background:var(--z0)"></i>Zone 0 %</span><span><i style="background:var(--z1)"></i>Zone 1 %</span></div>
+  <svg id="chart" viewBox="0 0 1000 220" width="100%" preserveAspectRatio="none" style="height:220px"></svg>
+</div>
+
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+  <div class="card scroll"><h2>Fans</h2><table id="fans"></table></div>
+  <div class="card scroll"><h2>Drives</h2><table id="disks"></table></div>
+</div>
+
+<div class="card">
+  <h2>Curves (temperature °C → fan duty %)</h2>
+  <div class="curves" id="curves"></div>
+  <h2 style="margin-top:18px">Zones</h2>
+  <div id="zones"></div>
+  <div class="row" style="margin-top:14px">
+    <button class="primary" id="save">Save</button>
+    <input id="token" type="password" placeholder="Token (if set)" style="display:none">
+    <span id="msg"></span>
+  </div>
+  <details style="margin-top:14px"><summary>Advanced configuration (JSON)</summary>
+    <textarea id="json"></textarea>
+    <div class="row"><button id="savejson">Save JSON</button></div>
+  </details>
+</div>
+</main>
+
+<script>
+let cfg = null, editing = false;
+const $ = id => document.getElementById(id);
+const fmt = (v, u) => v == null ? "—" : Math.round(v) + u;
+
+async function refresh() {
+  try {
+    const r = await fetch("api/status"); const d = await r.json();
+    const s = d.status;
+    if (!editing) { cfg = d.config; renderEditor(); }
+    $("token").style.display = d.token_required ? "" : "none";
+    $("upd").textContent = s.updated ? "Updated " + new Date(s.updated * 1000).toLocaleTimeString() + (s.message !== "ok" ? " · " + s.message : "") : (s.message || "");
+    const m = $("mode");
+    if (s.message && s.message.startsWith("error")) { m.className = "pill err"; m.textContent = "Error"; }
+    else if (d.config.dry_run) { m.className = "pill dry"; m.textContent = "Read-only"; }
+    else { m.className = "pill on"; m.textContent = s.active ? "Control active" : "Activating…"; }
+    $("toggle").textContent = d.config.dry_run ? "Enable control" : "Back to read-only";
+    $("toggle").className = d.config.dry_run ? "primary" : "danger";
+    const t = s.temps || {};
+    $("tcpu").textContent = fmt(t.cpu, "°C"); $("thdd").textContent = fmt(t.hdd, "°C");
+    for (const z of ["0", "1"]) {
+      const zz = (s.zones || {})[z];
+      $("z" + z + "n").textContent = zz ? zz.name : "Zone " + z;
+      $("z" + z).textContent = zz ? zz.duty + "%" : "—";
+      $("z" + z + "r").textContent = zz ? (d.config.dry_run ? "computed · " : "") + zz.reason : "";
+    }
+    $("fans").innerHTML = "<tr><th>Sensor</th><th>RPM</th></tr>" + Object.entries(s.fans || {})
+      .map(([k, v]) => `<tr><td>${k}</td><td>${v == null ? "—" : v}</td></tr>`).join("");
+    $("disks").innerHTML = "<tr><th>Drive</th><th>Type</th><th>Temp</th></tr>" + (s.disks || [])
+      .map(x => `<tr><td>${x.dev} <span class="sub">${x.model || ""}</span></td><td>${x.standby ? "standby" : x.kind}</td><td>${fmt(x.temp, "°C")}</td></tr>`).join("");
+    chart(d.history || []);
+  } catch (e) { $("upd").textContent = "Connection lost…"; }
+}
+
+function chart(h) {
+  const W = 1000, H = 220, P = 30, svg = $("chart");
+  if (h.length < 2) { svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle">Collecting data…</text>`; return; }
+  const t0 = h[0].t, t1 = h[h.length - 1].t || t0 + 1;
+  const x = t => P + (t - t0) / Math.max(1, t1 - t0) * (W - P - 5);
+  const y = v => H - 18 - v / 100 * (H - 28);
+  const line = (k, c) => "<polyline fill='none' stroke='" + c + "' stroke-width='2' vector-effect='non-scaling-stroke' points='" +
+    h.filter(p => p[k] != null).map(p => x(p.t).toFixed(1) + "," + y(p[k]).toFixed(1)).join(" ") + "'/>";
+  let g = "";
+  for (const v of [0, 25, 50, 75, 100]) g += `<line x1="${P}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="2" y="${y(v) + 4}">${v}</text>`;
+  svg.innerHTML = g + line("cpu", "var(--cpu)") + line("hdd", "var(--hdd)") + line("z0", "var(--z0)") + line("z1", "var(--z1)");
+}
+
+function renderEditor() {
+  const box = $("curves"); box.innerHTML = "";
+  for (const [name, pts] of Object.entries(cfg.curves)) {
+    const div = document.createElement("div");
+    div.innerHTML = `<b>${name.toUpperCase()}</b><table>${pts.map((p, i) =>
+      `<tr><td><input type="number" data-c="${name}" data-i="${i}" data-k="0" value="${p[0]}">°C</td>
+       <td><input type="number" min="0" max="100" data-c="${name}" data-i="${i}" data-k="1" value="${p[1]}">%</td>
+       <td><button data-del="${name}" data-i="${i}">✕</button></td></tr>`).join("")}</table>
+       <button data-add="${name}">+ point</button>`;
+    box.appendChild(div);
+  }
+  $("zones").innerHTML = Object.entries(cfg.zones).map(([z, zz]) => `<div class="row" style="margin-bottom:8px">
+    <b style="min-width:220px">${z}: ${zz.name}</b>
+    min <input type="number" data-z="${z}" data-f="min_duty" value="${zz.min_duty}">%
+    max <input type="number" data-z="${z}" data-f="max_duty" value="${zz.max_duty}">%
+    ${Object.keys(cfg.curves).map(c => `<label><input type="checkbox" data-z="${z}" data-src="${c}" ${zz.sources.includes(c) ? "checked" : ""}> ${c}</label>`).join(" ")}
+  </div>`).join("");
+  $("json").value = JSON.stringify(cfg, null, 2);
+}
+
+document.addEventListener("input", e => {
+  const el = e.target; if (el.id === "json" || el.id === "token") return;
+  editing = true;
+  if (el.dataset.c) cfg.curves[el.dataset.c][+el.dataset.i][+el.dataset.k] = +el.value;
+  if (el.dataset.f) cfg.zones[el.dataset.z][el.dataset.f] = +el.value;
+  if (el.dataset.src) { const s = cfg.zones[el.dataset.z].sources, c = el.dataset.src;
+    if (el.checked && !s.includes(c)) s.push(c); if (!el.checked) s.splice(s.indexOf(c), 1); }
+});
+$("json").addEventListener("focus", () => editing = true);
+document.addEventListener("click", e => {
+  const el = e.target;
+  if (el.dataset.add) { editing = true; const c = cfg.curves[el.dataset.add]; const l = c[c.length - 1]; c.push([l[0] + 5, Math.min(100, l[1])]); renderEditor(); }
+  if (el.dataset.del) { editing = true; const c = cfg.curves[el.dataset.del]; if (c.length > 2) c.splice(+el.dataset.i, 1); renderEditor(); }
+});
+
+async function post(body) {
+  const r = await fetch("api/config", { method: "POST", headers: { "Content-Type": "application/json", "X-Token": $("token").value }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (!r.ok) { $("msg").textContent = "⚠ " + d.error; $("msg").style.color = "var(--bad)"; return false; }
+  cfg = d.config; editing = false; renderEditor();
+  $("msg").textContent = "Saved"; $("msg").style.color = "var(--acc)";
+  setTimeout(() => $("msg").textContent = "", 3000); refresh(); return true;
+}
+$("save").onclick = () => post(cfg);
+$("savejson").onclick = () => { try { post(JSON.parse($("json").value)); } catch (e) { $("msg").textContent = "⚠ Invalid JSON"; } };
+$("toggle").onclick = async () => {
+  const goLive = cfg.dry_run;
+  if (goLive && !confirm("Enable fan control? Fans will follow the configured curves.")) return;
+  const r = await fetch("api/status"); const d = await r.json();
+  post({ ...d.config, dry_run: !goLive });
+};
+refresh(); setInterval(refresh, 5000);
+</script>
+</body>
+</html>
