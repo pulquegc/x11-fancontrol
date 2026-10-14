@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="frame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e6d3b8"/>
+      <stop offset="1" stop-color="#c9b08e"/>
+    </linearGradient>
+    <radialGradient id="hole" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.75" stop-color="#2a1d17"/>
+      <stop offset="1" stop-color="#140d0a"/>
+    </radialGradient>
+    <linearGradient id="blade" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a8735a"/>
+      <stop offset="1" stop-color="#6f4534"/>
+    </linearGradient>
+    <radialGradient id="hub" cx="0.4" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#9a6650"/>
+      <stop offset="1" stop-color="#5e3a2b"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#frame)"/>
+  <rect x="6" y="6" width="500" height="500" rx="106" fill="none" stroke="#f3e6d2" stroke-opacity="0.6" stroke-width="4"/>
+  <g fill="#5b3a2c">
+    <circle cx="86" cy="86" r="34"/><circle cx="426" cy="86" r="34"/>
+    <circle cx="86" cy="426" r="34"/><circle cx="426" cy="426" r="34"/>
+  </g>
+  <g fill="#3d271e">
+    <circle cx="86" cy="86" r="13"/><circle cx="426" cy="86" r="13"/>
+    <circle cx="86" cy="426" r="13"/><circle cx="426" cy="426" r="13"/>
+  </g>
+  <circle cx="256" cy="256" r="196" fill="url(#hole)"/>
+  <circle cx="256" cy="256" r="196" fill="none" stroke="#b39675" stroke-width="6"/>
+  <g transform="translate(256 256) scale(1.38)">
+    <path d="M-4,-22 C26,-66 96,-82 132,-50 C136,-42 130,-36 120,-38 C88,-42 54,-30 30,-8 C18,4 4,8 -4,4 Z" transform="rotate(0.00)" fill="url(#blade)" stroke="#5a3828" stroke-width="2"/>
+    <path d="M-4,-22 C26,-66 96,-82 132,-50 C136,-42 130,-36 120,-38 C88,-42 54,-30 30,-8 C18,4 4,8 -4,4 Z" transform="rotate(51.43)" fill="url(#blade)" stroke="#5a3828" stroke-width="2"/>
+    <path d="M-4,-22 C26,-66 96,-82 132,-50 C136,-42 130,-36 120,-38 C88,-42 54,-30 30,-8 C18,4 4,8 -4,4 Z" transform="rotate(102.86)" fill="url(#blade)" stroke="#5a3828" stroke-width="2"/>
+    <path d="M-4,-22 C26,-66 96,-82 132,-50 C136,-42 130,-36 120,-38 C88,-42 54,-30 30,-8 C18,4 4,8 -4,4 Z" transform="rotate(154.29)" fill="url(#blade)" stroke="#5a3828" stroke-width="2"/>
+    <path d="M-4,-22 C26,-66 96,-82 132,-50 C136,-42 130,-36 120,-38 C88,-42 54,-30 30,-8 C18,4 4,8 -4,4 Z" transform="rotate(205.71)" fill="url(#blade)" stroke="#5a3828" stroke-width="2"/>
+    <path d="M-4,-22 C26,-66 96,-82 132,-50 C136,-42 130,-36 120,-38 C88,-42 54,-30 30,-8 C18,4 4,8 -4,4 Z" transform="rotate(257.14)" fill="url(#blade)" stroke="#5a3828" stroke-width="2"/>
+    <path d="M-4,-22 C26,-66 96,-82 132,-50 C136,-42 130,-36 120,-38 C88,-42 54,-30 30,-8 C18,4 4,8 -4,4 Z" transform="rotate(308.57)" fill="url(#blade)" stroke="#5a3828" stroke-width="2"/>
+    <circle r="40" fill="url(#hub)" stroke="#5a3828" stroke-width="3"/>
+    <circle r="27" fill="none" stroke="#c9a487" stroke-opacity="0.55" stroke-width="3"/>
+  </g>
+</svg>

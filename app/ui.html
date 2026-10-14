@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>X11 Fan Control</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.png">
 <style>
 :root{--bg:#f5f6f4;--card:#fff;--ink:#1d2321;--mute:#6b7470;--line:#e2e5e1;--acc:#0f7b6c;--warn:#b5651d;--bad:#b42318;--cpu:#d9480f;--hdd:#1971c2;--z0:#2b8a3e;--z1:#7048e8}
 @media (prefers-color-scheme:dark){:root{--bg:#121514;--card:#1b1f1e;--ink:#e6e9e7;--mute:#8d9692;--line:#2b302e;--acc:#38c7b0;--warn:#f0a35b;--bad:#ff6b5b;--cpu:#ff8a50;--hdd:#5aa9f0;--z0:#5fd17a;--z1:#a48cff}}
@@ -44,7 +46,7 @@ details summary{cursor:pointer;color:var(--mute)}
 <body>
 <main>
 <header>
-  <div><h1>X11 Fan Control</h1><div class="sub" id="upd">—</div></div>
+  <div class="row" style="gap:12px"><img src="icon.svg" alt="" width="40" height="40" style="border-radius:9px"><div><h1>X11 Fan Control</h1><div class="sub" id="upd">—</div></div></div>
   <div class="row"><span id="mode" class="pill">…</span><button id="toggle">…</button></div>
 </header>
 

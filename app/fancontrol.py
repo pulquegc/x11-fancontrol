@@ -450,6 +450,17 @@ def make_handler(ctrl):
             if self.path in ("/", "/index.html"):
                 with open(UI_PATH, "rb") as f:
                     return self._send(200, f.read(), "text/html")
+            if self.path in ("/icon.svg", "/icon.png"):
+                ctype = "image/svg+xml" if self.path.endswith("svg") else "image/png"
+                with open(os.path.join(APP_DIR, self.path[1:]), "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
             if self.path == "/api/status":
                 with ctrl.lock:
                     body = {"status": ctrl.status, "config": ctrl.cfg,

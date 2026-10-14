@@ -1,4 +1,6 @@
-# X11 Fan Control
+<p align="center"><img src="docs/icon.svg" alt="X11 Fan Control icon" width="128"></p>
+
+<h1 align="center">X11 Fan Control</h1>
 
 [English](README.md) · **Italiano**
 
