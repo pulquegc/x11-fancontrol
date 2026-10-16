@@ -53,6 +53,7 @@ DEFAULT_CONFIG = {
     "failsafe_after_errors": 3,
     "restore_mode_on_exit": 2,
     "cpu_sensor": "CPU Temp",
+    "manual_min_duty": 15,
     "disks_exclude": [],
     "fan_lower_thresholds": None,
     "zones": {
@@ -123,6 +124,7 @@ def validate_config(cfg):
     cfg["max_step_down"] = max(1, int(cfg["max_step_down"]))
     cfg["failsafe_duty"] = min(100, max(50, int(cfg["failsafe_duty"])))
     cfg["failsafe_after_errors"] = max(1, int(cfg["failsafe_after_errors"]))
+    cfg["manual_min_duty"] = min(100, max(0, int(cfg["manual_min_duty"])))
     if int(cfg["restore_mode_on_exit"]) not in FAN_MODES:
         raise ValueError("restore_mode_on_exit must be 0, 1, 2 or 4")
     for name, curve in cfg["curves"].items():
@@ -257,6 +259,7 @@ class Controller:
         self.active = False           # are we driving the fans?
         self.original_mode = None
         self.duty = {}                # zone -> current duty
+        self.manual = {}              # zone -> {"duty": int, "until": epoch or None}
         self.disks = []
         self.last_disk_read = 0.0
         self.errors = 0
@@ -334,8 +337,45 @@ class Controller:
                 new = max(down, cur - cfg["max_step_down"])
             else:
                 new = cur
-            result[zid] = (new, why)
+            info = {"mode": "auto", "auto": up, "safety": False}
+
+            man = self.manual.get(zid)
+            if man and man["until"] and time.time() >= man["until"]:
+                log.info("Zone %s: manual override expired, back to auto", zid)
+                self.manual.pop(zid, None)
+                man = None
+            if man:
+                info.update(mode="manual", manual=man["duty"], until=man["until"])
+                # Safety: a source at the top of its curve overrides manual mode
+                hot = [f"{src} {temps[src]:.0f}°C" for src in z["sources"]
+                       if temps.get(src) is not None
+                       and temps[src] >= cfg["curves"][src][-1][0]]
+                if hot and up > man["duty"]:
+                    new, why = up, "safety: " + ", ".join(hot)
+                    info["safety"] = True
+                else:
+                    new, why = man["duty"], "manual"
+            result[zid] = (new, why, info)
         return result
+
+    def set_manual(self, zone, duty, minutes=None):
+        zone = str(zone)
+        with self.lock:
+            cfg = self.cfg
+        if zone not in cfg["zones"]:
+            raise ValueError(f"Unknown zone '{zone}'")
+        if duty is None:
+            if self.manual.pop(zone, None):
+                log.info("Zone %s: back to auto", zone)
+        else:
+            if cfg["dry_run"]:
+                raise ValueError("Enable control first: manual mode has no effect in read-only mode")
+            duty = min(100, max(cfg["manual_min_duty"], int(round(float(duty)))))
+            until = time.time() + float(minutes) * 60 if minutes else None
+            self.manual[zone] = {"duty": duty, "until": until}
+            log.info("Zone %s: manual %d%%%s", zone, duty,
+                     f" for {float(minutes):g} min" if minutes else "")
+        self.wake.set()
 
     def tick(self):
         with self.lock:
@@ -357,9 +397,11 @@ class Controller:
             self.take_control([n for n in fans if n.upper().startswith("FAN")])
         elif cfg["dry_run"] and self.active:
             self.release_control()
+        if cfg["dry_run"] and self.manual:
+            self.manual.clear()
 
         targets = self.compute(temps)
-        for zid, (duty, _) in targets.items():
+        for zid, (duty, _, _) in targets.items():
             if self.active and self.duty.get(zid) != duty:
                 set_zone_duty(zid, duty)
                 log.info("Zone %s -> %d%%", zid, duty)
@@ -384,8 +426,8 @@ class Controller:
                 "temps_raw": temps_raw,
                 "fans": fans,
                 "disks": self.disks,
-                "zones": {z: {"duty": d, "reason": w, "name": cfg["zones"][z]["name"]}
-                          for z, (d, w) in targets.items()},
+                "zones": {z: {"duty": d, "reason": w, "name": cfg["zones"][z]["name"], **i}
+                          for z, (d, w, i) in targets.items()},
                 "errors": 0,
                 "message": "ok",
             }
@@ -470,13 +512,17 @@ def make_handler(ctrl):
             self._send(404, json.dumps({"error": "not found"}))
 
         def do_POST(self):
-            if self.path != "/api/config":
+            if self.path not in ("/api/config", "/api/manual"):
                 return self._send(404, json.dumps({"error": "not found"}))
             if UI_TOKEN and self.headers.get("X-Token") != UI_TOKEN:
                 return self._send(403, json.dumps({"error": "invalid token"}))
             try:
                 n = int(self.headers.get("Content-Length", "0"))
-                cfg = ctrl.update_config(json.loads(self.rfile.read(n)))
+                body = json.loads(self.rfile.read(n))
+                if self.path == "/api/manual":
+                    ctrl.set_manual(body.get("zone"), body.get("duty"), body.get("minutes"))
+                    return self._send(200, json.dumps({"ok": True}))
+                cfg = ctrl.update_config(body)
                 self._send(200, json.dumps({"ok": True, "config": cfg}))
             except Exception as e:  # noqa: BLE001
                 self._send(400, json.dumps({"error": str(e)}))

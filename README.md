@@ -17,6 +17,7 @@ It reads the CPU temperature from the BMC and the drive temperatures with `smart
 - **Smooth behaviour**: speeds go up immediately and come down gradually, with hysteresis, so fans don't keep hunting.
 - **Read-only first run**: the app starts in `dry_run` mode and only shows what it *would* do until you enable control.
 - **Fail-safe**: repeated read errors drive the fans to full speed; stopping the container restores the original BMC fan mode.
+- **Manual control**: switch any zone to *Manual* and set its speed with an on-screen knob (drag, scroll wheel or arrow keys), optionally returning to auto after 30 min, 1 h or 4 h.
 - **Web UI** (port 8765): live temperatures and fan speeds, a one-hour chart, a curve editor and an advanced JSON editor. Works on phones and follows the system dark mode.
 - **No dependencies** beyond `ipmitool`, `smartmontools` and the Python standard library.
 
@@ -65,6 +66,7 @@ If you run it on another board, please open an issue with the output of `ipmitoo
 - Every `disk_interval` seconds it scans drives with `smartctl --scan` and reads their temperature with `smartctl -n standby`, classifying each one as HDD, SSD or NVMe.
 - For each zone it evaluates the curves of its sources (linear interpolation between points) and keeps the highest value, clamped to the zone's `min_duty`/`max_duty`.
 - When control is enabled, it switches the BMC to **Full** mode (so the BMC stops overriding) and sets each zone with `ipmitool raw 0x30 0x70 0x66 0x01 <zone> <duty>`.
+- A zone in **manual mode** keeps the speed you set, with one exception: if any of its source temperatures reaches the last point of its curve, the zone runs at the curve's speed until it cools down. Manual settings live in memory, so a container restart puts every zone back on auto.
 - On shutdown it restores the BMC mode it found at startup (or `restore_mode_on_exit`, default **Optimal**).
 
 ## Configuration
@@ -81,6 +83,7 @@ Settings live in `/data/config.json` and can be edited from the UI. The main key
 | `failsafe_duty` | `100` | Duty applied after repeated errors |
 | `failsafe_after_errors` | `3` | Consecutive errors before fail-safe |
 | `restore_mode_on_exit` | `2` | BMC mode on exit if the original was Full (0 Standard, 1 Full, 2 Optimal, 4 Heavy IO) |
+| `manual_min_duty` | `15` | Lowest duty the manual knob allows |
 | `cpu_sensor` | `"CPU Temp"` | BMC sensor used for the CPU temperature |
 | `disks_exclude` | `[]` | Substrings of device paths to ignore, e.g. `["/dev/sdz"]` |
 | `fan_lower_thresholds` | `null` | Lower BMC RPM thresholds applied when control starts, e.g. `[100, 200, 300]` |

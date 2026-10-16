@@ -17,6 +17,7 @@ Legge la temperatura della CPU dal BMC e quella dei dischi con `smartctl`, calco
 - **Comportamento morbido**: le ventole accelerano subito e rallentano gradualmente, con isteresi, senza continui sbalzi.
 - **Primo avvio in sola lettura**: l'app parte in modalità `dry_run` e mostra solo cosa *farebbe*, finché non attivi il controllo.
 - **Failsafe**: errori di lettura ripetuti portano le ventole al massimo; fermando il container viene ripristinata la modalità ventole originale del BMC.
+- **Controllo manuale**: passa una zona in *Manual* e regola la velocità con una manopola sullo schermo (trascinando, con la rotella o con le frecce), con ritorno automatico facoltativo dopo 30 minuti, 1 ora o 4 ore.
 - **Interfaccia web** (porta 8765): temperature e giri in tempo reale, grafico dell'ultima ora, editor delle curve ed editor JSON avanzato. Funziona da telefono e segue il tema scuro del sistema.
 - **Nessuna dipendenza** oltre a `ipmitool`, `smartmontools` e la libreria standard di Python.
 
@@ -65,6 +66,7 @@ Se lo provi su un'altra scheda, apri una issue con l'output di `ipmitool sdr typ
 - Ogni `disk_interval` secondi cerca i dischi con `smartctl --scan` e ne legge la temperatura con `smartctl -n standby`, classificandoli come HDD, SSD o NVMe.
 - Per ogni zona valuta le curve delle sorgenti associate (interpolazione lineare tra i punti) e tiene il valore più alto, entro i limiti `min_duty`/`max_duty`.
 - Con il controllo attivo porta il BMC in modalità **Full** (così smette di sovrascrivere i valori) e imposta ogni zona con `ipmitool raw 0x30 0x70 0x66 0x01 <zona> <duty>`.
+- Una zona in **modalità manuale** mantiene la velocità impostata, con un'eccezione: se una delle sue temperature raggiunge l'ultimo punto della curva, la zona segue la curva finché non si raffredda. Le impostazioni manuali restano in memoria, quindi un riavvio del container riporta tutte le zone in automatico.
 - Allo spegnimento ripristina la modalità trovata all'avvio (oppure `restore_mode_on_exit`, di default **Optimal**).
 
 ## Configurazione
@@ -81,6 +83,7 @@ Le impostazioni sono in `/data/config.json` e si modificano dall'interfaccia. Le
 | `failsafe_duty` | `100` | Velocità applicata dopo errori ripetuti |
 | `failsafe_after_errors` | `3` | Errori consecutivi prima del failsafe |
 | `restore_mode_on_exit` | `2` | Modalità BMC all'uscita se quella originale era Full (0 Standard, 1 Full, 2 Optimal, 4 Heavy IO) |
+| `manual_min_duty` | `15` | Velocità minima consentita dalla manopola manuale |
 | `cpu_sensor` | `"CPU Temp"` | Sensore BMC usato per la temperatura CPU |
 | `disks_exclude` | `[]` | Parti di percorso dei dischi da ignorare, es. `["/dev/sdz"]` |
 | `fan_lower_thresholds` | `null` | Soglie basse RPM del BMC applicate all'attivazione, es. `[100, 200, 300]` |
