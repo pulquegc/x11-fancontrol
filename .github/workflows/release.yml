@@ -1,0 +1,89 @@
+name: Release
+
+# Creates a tag, a GitHub release and versioned images for every
+# "## [x.y.z]" section of CHANGELOG.md that does not have a tag yet.
+on:
+  push:
+    branches: [main]
+    paths: [CHANGELOG.md]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find versions to release
+        id: plan
+        run: |
+          git fetch --tags --force
+          python3 - <<'EOF'
+          import json, os, re, subprocess
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          parts = re.split(r"^## \[(\d+\.\d+\.\d+)\][^\n]*\n", text, flags=re.M)
+          tags = set(subprocess.run(["git", "tag", "-l"], capture_output=True, text=True).stdout.split())
+          entries = []
+          for i in range(1, len(parts), 2):
+              version, body = parts[i], parts[i + 1].strip()
+              m = re.search(r"<!--\s*commit:\s*([0-9a-f]{7,40})\s*-->", body)
+              commit = m.group(1) if m else os.environ["GITHUB_SHA"]
+              body = re.sub(r"<!--.*?-->\s*", "", body, flags=re.S).strip()
+              entries.append({"version": version, "commit": commit, "body": body})
+          key = lambda e: tuple(int(x) for x in e["version"].split("."))
+          highest = max(entries, key=key)["version"] if entries else None
+          todo = sorted([e for e in entries if "v" + e["version"] not in tags], key=key)
+          os.makedirs("/tmp/notes", exist_ok=True)
+          for e in todo:
+              open(f"/tmp/notes/{e['version']}.md", "w", encoding="utf-8").write(e["body"] + "\n")
+              e["latest"] = e["version"] == highest
+          json.dump(todo, open("/tmp/todo.json", "w"))
+          print("To release:", [e["version"] for e in todo] or "nothing")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"count={len(todo)}\n")
+          EOF
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.plan.outputs.count != '0'
+
+      - uses: docker/login-action@v3
+        if: steps.plan.outputs.count != '0'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag, release and build
+        if: steps.plan.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python3 -c "import json; [print(e['version'], e['commit'], str(e['latest']).lower()) for e in json.load(open('/tmp/todo.json'))]" |
+          while read -r version commit latest; do
+            echo "::group::v$version at $commit"
+            git tag -a "v$version" "$commit" -m "v$version"
+            git push origin "v$version"
+            gh release create "v$version" --verify-tag --title "v$version" \
+              --notes-file "/tmp/notes/$version.md" --latest="$latest"
+            rm -rf /tmp/src && git worktree add --detach /tmp/src "$commit"
+            docker buildx build /tmp/src --platform linux/amd64 --push \
+              --label "org.opencontainers.image.version=$version" \
+              --label "org.opencontainers.image.revision=$commit" \
+              --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+              -t "$IMAGE:$version" -t "$IMAGE:${version%.*}"
+            git worktree remove --force /tmp/src
+            echo "::endgroup::"
+          done

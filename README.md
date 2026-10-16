@@ -54,7 +54,7 @@ If you run it on another board, please open an issue with the output of `ipmitoo
          - /mnt/tank/fancontrol:/data
    ```
 
-   Change the volume path to your dataset and `TZ` to your time zone.
+   Change the volume path to your dataset and `TZ` to your time zone. `latest` follows the newest version; to stay on a specific one, use its number instead, e.g. `:1.1.0` (see [Releases](https://github.com/pulquegc/x11-fancontrol/releases) and the [changelog](CHANGELOG.md)).
 3. Open `http://<nas-ip>:8765`. The badge shows **Read-only**.
 4. Leave it in read-only mode for a while (ideally during a scrub or a large transfer), check that CPU and drive temperatures look right, adjust the curves, then press **Enable control**.
 

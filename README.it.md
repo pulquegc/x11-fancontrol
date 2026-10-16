@@ -54,7 +54,7 @@ Se lo provi su un'altra scheda, apri una issue con l'output di `ipmitool sdr typ
          - /mnt/tank/fancontrol:/data
    ```
 
-   Sostituisci il percorso del volume con quello del tuo dataset.
+   Sostituisci il percorso del volume con quello del tuo dataset. `latest` segue sempre la versione più recente; per restare su una versione precisa usa il suo numero, ad esempio `:1.1.0` (vedi [Releases](https://github.com/pulquegc/x11-fancontrol/releases) e il [changelog](CHANGELOG.md)).
 3. Apri `http://IP-DEL-NAS:8765`. L'indicatore mostra **Read-only**.
 4. Lascialo in sola lettura per un po' (meglio se durante uno scrub o un trasferimento grosso), verifica che le temperature di CPU e dischi siano corrette, regola le curve e premi **Enable control**.
 
