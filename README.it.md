@@ -99,6 +99,41 @@ Le impostazioni sono in `/data/config.json` e si modificano dall'interfaccia. Le
 | `UI_TOKEN` | *(vuoto)* | Se impostato, serve per salvare dall'interfaccia |
 | `IPMI_HOST`, `IPMI_USER`, `IPMI_PASS` | *(vuoti)* | Usa un BMC remoto via rete invece di `/dev/ipmi0` |
 
+## Widget per dashboard (Homepage)
+
+`GET /api/summary` restituisce un JSON piccolo e piatto (circa 300 byte) pensato per le dashboard: `cpu`, `hdd`, `ssd`, `nvme` (°C), `zone0` / `zone1` (duty %), `zone0_mode` / `zone1_mode`, `mode`, `message` e `fans` (rpm di ogni ventola con una lettura). `/api/status` è più grande perché contiene anche la configurazione e lo storico dell'ultima ora.
+
+Esempio per [Homepage](https://gethomepage.dev) (`services.yaml`):
+
+```yaml
+- X11 Fan Control:
+    icon: mdi-fan
+    href: http://IP-NAS:8765
+    widget:
+      type: customapi
+      url: http://IP-NAS:8765/api/summary
+      refreshInterval: 15000
+      display: list
+      mappings:
+        - field: cpu
+          label: CPU
+          format: number
+          suffix: "°C"
+        - field: hdd
+          label: HDD
+          format: number
+          suffix: "°C"
+        - field: zone0
+          label: Zona 0
+          format: number
+          suffix: "%"
+        - field:
+            fans: SYS_FAN2
+          label: SYS_FAN2
+          format: number
+          suffix: " rpm"
+```
+
 ## Risoluzione dei problemi
 
 **Le ventole passano di continuo da lente al massimo.** È il classico problema Supermicro: se una ventola scende sotto la soglia minima di giri del BMC, il BMC la considera guasta e porta tutto al massimo. Succede facilmente con ventole silenziose (es. Noctua). Imposta `fan_lower_thresholds` sotto la velocità minima delle tue ventole, ad esempio `[100, 200, 300]`, poi disattiva e riattiva il controllo per applicarle.

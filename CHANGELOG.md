@@ -4,6 +4,11 @@ All notable changes to this project are listed here. Versions follow [Semantic V
 
 When a new `## [x.y.z]` section is pushed to `main`, the release workflow creates the `vx.y.z` tag, publishes a GitHub release with that section as notes, and pushes the `ghcr.io/pulquegc/x11-fancontrol:x.y.z` image. A `<!-- commit: SHA -->` line pins the release to an earlier commit; without it the release points to the commit that added the section.
 
+## [1.2.0] - 2026-11-04
+
+### Added
+- `GET /api/summary`: a small, flat JSON (temperatures, zone duty and mode, fan rpm, status) for dashboards such as Homepage, without the config and history returned by `/api/status`.
+
 ## [1.1.0] - 2026-10-16
 <!-- commit: beba08fe04780c3d449ed6cc530da4ecf4dc7af9 -->
 

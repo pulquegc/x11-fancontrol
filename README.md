@@ -99,6 +99,41 @@ Settings live in `/data/config.json` and can be edited from the UI. The main key
 | `UI_TOKEN` | *(empty)* | If set, saving from the UI requires this token |
 | `IPMI_HOST`, `IPMI_USER`, `IPMI_PASS` | *(empty)* | Use a remote BMC over LAN instead of `/dev/ipmi0` |
 
+## Dashboard widget (Homepage)
+
+`GET /api/summary` returns a small, flat JSON (about 300 bytes) made for dashboards: `cpu`, `hdd`, `ssd`, `nvme` (°C), `zone0` / `zone1` (duty %), `zone0_mode` / `zone1_mode`, `mode`, `message` and `fans` (rpm of each fan with a reading). `/api/status` is larger because it also returns the config and the one-hour history.
+
+Example for [Homepage](https://gethomepage.dev) (`services.yaml`):
+
+```yaml
+- X11 Fan Control:
+    icon: mdi-fan
+    href: http://NAS-IP:8765
+    widget:
+      type: customapi
+      url: http://NAS-IP:8765/api/summary
+      refreshInterval: 15000
+      display: list
+      mappings:
+        - field: cpu
+          label: CPU
+          format: number
+          suffix: "°C"
+        - field: hdd
+          label: HDD
+          format: number
+          suffix: "°C"
+        - field: zone0
+          label: Zone 0
+          format: number
+          suffix: "%"
+        - field:
+            fans: SYS_FAN2
+          label: SYS_FAN2
+          format: number
+          suffix: " rpm"
+```
+
 ## Troubleshooting
 
 **Fans cycle between slow and full speed every few seconds.** This is the classic Supermicro issue: when a fan drops below the BMC's lower RPM threshold, the BMC assumes it failed and spins everything up. Low-RPM fans (e.g. Noctua) trigger it easily. Set `fan_lower_thresholds` to values below your fans' minimum speed, e.g. `[100, 200, 300]`, and toggle control off and on to apply them.

@@ -474,6 +474,32 @@ class Controller:
 
 # ---------------------------------------------------------------- web UI
 
+def summarize(status):
+    """Small, flat view of the status for dashboards (e.g. Homepage customapi).
+
+    Keys are flat so they are easy to map: temperatures in degrees C, zone duty
+    in percent, fan speeds in rpm. Fans without a reading are left out.
+    """
+    temps = status.get("temps") or {}
+    zones = status.get("zones") or {}
+    out = {
+        "message": status.get("message"),
+        "updated": status.get("updated"),
+        "mode": "read-only" if status.get("dry_run") else ("active" if status.get("active") else "idle"),
+        "errors": status.get("errors", 0),
+        "cpu": temps.get("cpu"),
+        "hdd": temps.get("hdd"),
+        "ssd": temps.get("ssd"),
+        "nvme": temps.get("nvme"),
+    }
+    for zid, z in sorted(zones.items()):
+        out[f"zone{zid}"] = z.get("duty")
+        out[f"zone{zid}_mode"] = z.get("mode")
+        out[f"zone{zid}_reason"] = z.get("reason")
+    out["fans"] = {name: rpm for name, rpm in (status.get("fans") or {}).items() if rpm is not None}
+    return out
+
+
 def make_handler(ctrl):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -508,6 +534,10 @@ def make_handler(ctrl):
                     body = {"status": ctrl.status, "config": ctrl.cfg,
                             "history": list(ctrl.history),
                             "token_required": bool(UI_TOKEN)}
+                return self._send(200, json.dumps(body))
+            if self.path.split("?", 1)[0] == "/api/summary":
+                with ctrl.lock:
+                    body = summarize(ctrl.status)
                 return self._send(200, json.dumps(body))
             self._send(404, json.dumps({"error": "not found"}))
 
